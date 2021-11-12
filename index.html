@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>matrix-f32-array-performace-issue</title>
+    <script src="./libs/gl_matrix_wasm.js"></script>
+  </head>
+  <body>
+    <a href="./index.html?spec=multiply">multiply</a>
+    <a href="./index.html?spec=invert">invert</a>
+    <a href="./index.html?spec=multiply_invert">multiply & invert</a>
+  </body>
+</html>
+
+<script type="module">
+  import './libs/console.js';
+  import { test, expect, benchmark } from './libs/test.js';
+  import * as THREE from './libs/three-math/Matrix4.js';
+  import * as THREE_F32 from './libs/three-math/Matrix4-f32.js';
+  import * as OasisMath from './libs/oasis-engine-math.module.js';
+  import * as OasisMath_NO_F32 from './libs/oasis-engine-math-no-f32.module.js';
+
+  const glMatrixWasm = window.glMatrixWasm;
+
+  const params = new URLSearchParams(location.search);
+  const specific = params.get('spec') || 'multiply_invert';
+
+  // console.log('请关闭dev tools测试wasm, 否则结果差异较大, 尤其在火狐里');
+  // console.logold(OasisMath, THREE);
+
+  // prettier-ignore
+  const mat4_data1 = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53];
+  // prettier-ignore
+  const mat4_data2 = [59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131];
+
+  test('matrix_f32_array_issue', async () => {
+    await glMatrixWasm.init();
+    const glMatrixWasmMatrix4 = glMatrixWasm.Matrix4;
+
+    const mat4_THREE_1 = new THREE.Matrix4().fromArray(mat4_data1);
+    const mat4_THREE_2 = new THREE.Matrix4().fromArray(mat4_data2);
+    const mat4_THREE_1_f32 = new THREE_F32.Matrix4().fromArray(mat4_data1);
+    const mat4_THREE_2_f32 = new THREE_F32.Matrix4().fromArray(mat4_data2);
+
+    const mat4_Oasis_1 = new OasisMath.Matrix().setValueByArray(mat4_data1);
+    const mat4_Oasis_2 = new OasisMath.Matrix().setValueByArray(mat4_data2);
+    const mat4_Oasis_1_no_f32 = new OasisMath_NO_F32.Matrix().setValueByArray(
+      mat4_data1,
+    );
+    const mat4_Oasis_2_no_f32 = new OasisMath_NO_F32.Matrix().setValueByArray(
+      mat4_data2,
+    );
+
+    // prettier-ignore
+    const ms = [
+      glMatrixWasm.Matrix4.fromValues(1, 2, 3, 4, 5, 6, 7, 8, 8, 2, 1, 2, 7, 1, 3, 2),
+      glMatrixWasm.Matrix4.fromValues(1, 2, 3, 1, 5, 6, 7, 2, 8, 2, 1, 2, 9, 1, 3, 2),
+      glMatrixWasm.Matrix4.fromValues(2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2),
+    ];
+
+    expect(mat4_THREE_1.multiply(mat4_THREE_2).elements).toBe(
+      mat4_Oasis_1.multiply(mat4_Oasis_2).elements,
+    );
+    expect(mat4_THREE_1.invert().elements).toBe(mat4_Oasis_1.invert().elements);
+
+    mat4_THREE_1.fromArray(mat4_data1);
+    mat4_THREE_2.fromArray(mat4_data2);
+    mat4_Oasis_1.setValueByArray(mat4_data1);
+    mat4_Oasis_2.setValueByArray(mat4_data2);
+
+    const bench_multiply = loopCount =>
+      benchmark(
+        {
+          three_no_f32_array() {
+            mat4_THREE_1.multiply(mat4_THREE_2);
+          },
+          three_with_f32_array() {
+            mat4_THREE_1_f32.multiply(mat4_THREE_2_f32);
+          },
+          oasis_no_f32_array() {
+            mat4_Oasis_1_no_f32.multiply(mat4_Oasis_2_no_f32);
+          },
+          oasis_with_f32_array() {
+            mat4_Oasis_1.multiply(mat4_Oasis_2);
+          },
+          // gl_matrix_wasm() {
+          //   glMatrixWasmMatrix4.multiply(ms[2], ms[0], ms[1]);
+          // },
+        },
+        loopCount,
+        '_multiply',
+      );
+
+    const bench_invert = loopCount =>
+      benchmark(
+        {
+          three_no_f32_array() {
+            mat4_THREE_1.invert();
+          },
+          three_with_f32_array() {
+            mat4_THREE_1_f32.invert();
+          },
+          oasis_no_f32_array() {
+            mat4_Oasis_1_no_f32.invert();
+          },
+          oasis_with_f32_array() {
+            mat4_Oasis_1.invert();
+          },
+        },
+        loopCount,
+        '_invert',
+      );
+
+    const bench_multiply_invert = loopCount =>
+      benchmark(
+        {
+          three_no_f32_array() {
+            mat4_THREE_1.multiply(mat4_THREE_2).invert();
+          },
+          three_with_f32_array() {
+            mat4_THREE_1_f32.multiply(mat4_THREE_2_f32).invert();
+          },
+          oasis_no_f32_array() {
+            mat4_Oasis_1_no_f32.multiply(mat4_Oasis_2_no_f32).invert();
+          },
+          oasis_with_f32_array() {
+            mat4_Oasis_1.multiply(mat4_Oasis_2).invert();
+          },
+        },
+        loopCount,
+        '_multiply&invert',
+      );
+
+    switch (specific) {
+      case 'multiply': {
+        bench_multiply(1000);
+        // bench_multiply(10000);
+        bench_multiply(1000000);
+        bench_multiply(10000);
+        break;
+      }
+      case 'invert': {
+        bench_invert(1000);
+        // bench_invert(10000);
+        bench_invert(1000000);
+        bench_invert(10000);
+        break;
+      }
+      case 'multiply_invert': {
+        bench_multiply_invert(1000);
+        // bench_multiply_invert(10000);
+        bench_multiply_invert(1000000);
+        bench_multiply_invert(10000);
+        break;
+      }
+    }
+  });
+</script>
