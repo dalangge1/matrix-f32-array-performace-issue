@@ -7,6 +7,7 @@
   <body>
     <a href="./index.html?spec=multiply">multiply</a>
     <a href="./index.html?spec=invert">invert</a>
+    <a href="./index.html?spec=determinant">determinant</a>
     <a href="./index.html?spec=multiply_invert">multiply & invert</a>
   </body>
 </html>
@@ -16,6 +17,7 @@
   import { test, expect, benchmark } from './libs/test.js';
   import * as THREE from './libs/three-math/Matrix4.js';
   import * as THREE_F32 from './libs/three-math/Matrix4-f32.js';
+  import * as THREE_OPT from './libs/three-math/Matrix4-opt.js';
   import * as OasisMath from './libs/oasis-engine-math.module.js';
   import * as OasisMath_NO_F32 from './libs/oasis-engine-math-no-f32.module.js';
 
@@ -40,6 +42,8 @@
     const mat4_THREE_2 = new THREE.Matrix4().fromArray(mat4_data2);
     const mat4_THREE_1_f32 = new THREE_F32.Matrix4().fromArray(mat4_data1);
     const mat4_THREE_2_f32 = new THREE_F32.Matrix4().fromArray(mat4_data2);
+    const mat4_THREE_1_OPT = new THREE_OPT.Matrix4().fromArray(mat4_data1);
+    const mat4_THREE_2_OPT = new THREE_OPT.Matrix4().fromArray(mat4_data2);
 
     const mat4_Oasis_1 = new OasisMath.Matrix().setValueByArray(mat4_data1);
     const mat4_Oasis_2 = new OasisMath.Matrix().setValueByArray(mat4_data2);
@@ -76,6 +80,9 @@
           three_with_f32_array() {
             mat4_THREE_1_f32.multiply(mat4_THREE_2_f32);
           },
+          three_opt() {
+            mat4_THREE_1_OPT.multiply(mat4_THREE_2_OPT);
+          },
           oasis_no_f32_array() {
             mat4_Oasis_1_no_f32.multiply(mat4_Oasis_2_no_f32);
           },
@@ -99,6 +106,9 @@
           three_with_f32_array() {
             mat4_THREE_1_f32.invert();
           },
+          three_opt() {
+            mat4_THREE_1_OPT.invert();
+          },
           oasis_no_f32_array() {
             mat4_Oasis_1_no_f32.invert();
           },
@@ -108,6 +118,30 @@
         },
         loopCount,
         '_invert',
+      );
+
+    const bench_determinant = loopCount =>
+      benchmark(
+        {
+          three_no_f32_array() {
+            mat4_THREE_1.determinant();
+          },
+          three_with_f32_array() {
+            mat4_THREE_1_f32.determinant();
+          },
+          three_opt() {
+            // 在study-log-cpp的仓库里这个比three的快, 但这个仓库同样的逻辑却比原本的慢...
+            mat4_THREE_1_OPT.determinant();
+          },
+          oasis_no_f32_array() {
+            mat4_Oasis_1_no_f32.determinant();
+          },
+          oasis_with_f32_array() {
+            mat4_Oasis_1.determinant();
+          },
+        },
+        loopCount,
+        '_determinant',
       );
 
     const bench_multiply_invert = loopCount =>
@@ -133,23 +167,26 @@
     switch (specific) {
       case 'multiply': {
         bench_multiply(1000);
-        // bench_multiply(10000);
         bench_multiply(1000000);
         bench_multiply(10000);
         break;
       }
       case 'invert': {
         bench_invert(1000);
-        // bench_invert(10000);
         bench_invert(1000000);
         bench_invert(10000);
         break;
       }
       case 'multiply_invert': {
         bench_multiply_invert(1000);
-        // bench_multiply_invert(10000);
         bench_multiply_invert(1000000);
         bench_multiply_invert(10000);
+        break;
+      }
+      case 'determinant': {
+        bench_determinant(1000);
+        bench_determinant(1000000);
+        bench_determinant(10000);
         break;
       }
     }
